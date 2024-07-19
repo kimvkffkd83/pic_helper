@@ -87,22 +87,23 @@ tab.add(tab4, text="설정")
 # 부가기능 - 대소문자 변환
 tk.Label(tab3, text="대/소문자 변환", font=("맑은 고딕", 14)).pack(pady=10)
 
-frame1 = tk.Frame(tab3)
-frame1.pack(pady=5)
+tab3_frame1 = tk.Frame(tab3)
+tab3_frame1.pack(pady=5)
 
-tk.Label(frame1, text="변환 전 : ").grid(row=0, column=0, padx=5, pady=5)
-etc_cvt_input_before = tk.Entry(frame1, width=50)
+tk.Label(tab3_frame1, text="변환 전 : ").grid(row=0, column=0, padx=5, pady=5)
+etc_cvt_input_before = tk.Entry(tab3_frame1, width=50)
 etc_cvt_input_before.grid(row=0, column=1, padx=5, pady=5)
-btn_convert = tk.Button(frame1, text="변환", command=lambda: convert_text(etc_cvt_input_before, etc_cvt_input_after))
+btn_convert = tk.Button(tab3_frame1, text="변환", command=lambda: convert_text(etc_cvt_input_before, etc_cvt_input_after))
 btn_convert.grid(row=0, column=2, padx=5, pady=5)
 
-tk.Label(frame1, text="변환 후 : ").grid(row=1, column=0, padx=5, pady=5)
-etc_cvt_input_after = tk.Entry(frame1, width=50)
+tk.Label(tab3_frame1, text="변환 후 : ").grid(row=1, column=0, padx=5, pady=5)
+etc_cvt_input_after = tk.Entry(tab3_frame1, width=50)
 etc_cvt_input_after.grid(row=1, column=1, padx=5, pady=5)
-btn_cvt_copy = tk.Button(frame1, text="복사", command=lambda: copy_entry_text(etc_cvt_input_after))
+
+btn_cvt_copy = tk.Button(tab3_frame1, text="복사", command=lambda: copy_entry_text(etc_cvt_input_after))
 btn_cvt_copy.grid(row=1, column=2, padx=5, pady=5)
 
-btn_delete = tk.Button(frame1, text="모두 지우기", command=lambda: remove_text(etc_cvt_input_before, etc_cvt_input_after))
+btn_delete = tk.Button(tab3_frame1, text="모두 지우기",command=lambda: remove_text(etc_cvt_input_before, etc_cvt_input_after))
 btn_delete.grid(row=2, column=1, padx=5, pady=5)
 
 
@@ -135,44 +136,44 @@ separator.pack(fill='x', pady=10)
 # 부가기능 - 품목별 키워드 저장
 tk.Label(tab3, text="품목별 키워드 저장", font=("맑은 고딕", 14)).pack(pady=10)
 
-frame2 = tk.Frame(tab3)
-frame2.pack(pady=5)
+tab3_frame2 = tk.Frame(tab3)
+tab3_frame2.pack(pady=5)
 
 # 품목 리스트
-tk.Label(frame2, text="품목", font=("맑은 고딕", 12)).grid(row=0, column=0, columnspan=2, padx=5, pady=5)
+tk.Label(tab3_frame2, text="품목", font=("맑은 고딕", 12)).grid(row=0, column=0, columnspan=2, padx=5, pady=5)
 
-listbox = tk.Listbox(frame2, height=15, width=15)
+listbox = tk.Listbox(tab3_frame2, height=15, width=15)
 listbox.grid(row=1, column=0, rowspan=4, columnspan=2, padx=5, pady=5)
 
-btn_up = tk.Button(frame2, text="▲", command=lambda: move_up(listbox))
+btn_up = tk.Button(tab3_frame2, text="▲", command=lambda: move_up(listbox))
 btn_up.grid(row=5, column=0, padx=5, pady=5)
 
-btn_down = tk.Button(frame2, text="▼", command=lambda: move_down(listbox))
+btn_down = tk.Button(tab3_frame2, text="▼", command=lambda: move_down(listbox))
 btn_down.grid(row=5, column=1, padx=5, pady=5)
 
 # 구분선
-separator = ttk.Separator(frame2, orient='vertical')
+separator = ttk.Separator(tab3_frame2, orient='vertical')
 separator.grid(row=1, column=2, rowspan=4, sticky='ns', padx=10)
 
 # 품목
-tk.Label(frame2, text="품목명: ").grid(row=1, column=3, padx=5, pady=5)
-etc_input_item = tk.Entry(frame2, width=30)
+tk.Label(tab3_frame2, text="품목명: ").grid(row=1, column=3, padx=5, pady=5)
+etc_input_item = tk.Entry(tab3_frame2, width=30)
 etc_input_item.grid(row=1, column=4, columnspan=4, padx=5, pady=5)
 
-tk.Label(frame2, text="키워드: ").grid(row=2, column=3, padx=5, pady=5)
-etc_input_kwd = tk.Text(frame2, height=10, width=30)
+tk.Label(tab3_frame2, text="키워드: ").grid(row=2, column=3, padx=5, pady=5)
+etc_input_kwd = tk.Text(tab3_frame2, height=10, width=30)
 etc_input_kwd.grid(row=2, column=4, columnspan=4, padx=5, pady=5)
 
-btn_kwd_copy = tk.Button(frame2, text="복사", command=lambda: copy_text(etc_input_kwd))
+btn_kwd_copy = tk.Button(tab3_frame2, text="복사", command=lambda: copy_text(etc_input_kwd))
 btn_kwd_copy.grid(row=3, column=4, padx=5, pady=5)
 
-btn_kwd_modi = tk.Button(frame2, text="수정", command=lambda: mody_text(etc_input_kwd))
+btn_kwd_modi = tk.Button(tab3_frame2, text="수정", command=lambda: mody_text(etc_input_kwd))
 btn_kwd_modi.grid(row=3, column=5, padx=5, pady=5)
 
-btn_kwd_reg = tk.Button(frame2, text="등록", command=lambda: reg_item(etc_input_item, etc_input_kwd))
+btn_kwd_reg = tk.Button(tab3_frame2, text="등록", command=lambda: reg_item(etc_input_item, etc_input_kwd))
 btn_kwd_reg.grid(row=3, column=6, padx=5, pady=5)
 
-btn_kwd_del = tk.Button(frame2, text="삭제", command=lambda: del_item(etc_input_item))
+btn_kwd_del = tk.Button(tab3_frame2, text="삭제", command=lambda: del_item(etc_input_item))
 btn_kwd_del.grid(row=3, column=7, padx=5, pady=5)
 
 # 복사
@@ -320,5 +321,69 @@ def del_item(item_entry):
 
 
 # // 탭3 - 부가기능 영역
+
+# 탭4 - 설정 영역
+tk.Label(tab4, text="설정", font=("맑은 고딕", 14)).pack(pady=10)
+
+tab4_frame1 = tk.Frame(tab4)
+tab4_frame1.pack(pady=5)
+
+tk.Label(tab4_frame1, text="전체 투명도 조절", font=("맑은 고딕", 14)).grid(row=0, column=0)
+
+scaleVar = tk.IntVar()
+def scaleSelect(self):
+    value = "값 : " + str(scale.get())
+    scaleLabel.config(text=value)
+    root.attributes('-alpha', scale.get() / 100)  # 투명도 설정
+
+scaleVar.set(100)  # 초기값 100 설정
+scale = tk.Scale(tab4_frame1,
+                 variable=scaleVar,
+                 command=scaleSelect,
+                 orient="horizontal",
+                 showvalue=False,
+                 tickinterval=10,
+                 from_=10,
+                 to=100,
+                 resolution =10,
+                 width=15,
+                 length=300)
+scale.grid(row=1,column=0, padx=10, pady=10)
+
+scaleLabel = tk.Label(tab4_frame1, text="값 : 0")
+scaleLabel.grid(row=2, column=0)
+
+# 구분선
+separator = ttk.Separator(tab4, orient='horizontal')
+separator.pack(fill='x', pady=10)
+
+tab4_frame2 = tk.Frame(tab4)
+tab4_frame2.pack(pady=5)
+
+tk.Label(tab4_frame2, text="항상 맨 위로", font=("맑은 고딕", 14)).grid(row=0, column=0)
+btn_toggle_always_up = tk.Button(tab4_frame2, text="변경", command=lambda: onToggleAlwaysUp())
+btn_toggle_always_up.grid(row=1, column=0, padx=5, pady=5)
+toggleLabel = tk.Label(tab4_frame2, text="현재 상태 : 항상 맨 위로")
+toggleLabel.grid(row=2, column=0)
+
+def onToggleAlwaysUp():
+    if root.attributes('-topmost'):
+        root.attributes('-topmost', False)
+        toggleLabel.config(text="현재 상태 : 순서대로")
+    else:
+        root.attributes('-topmost', True)
+        toggleLabel.config(text="현재 상태 : 항상 맨 위로")
+
+        # 구분선
+separator = ttk.Separator(tab4, orient='horizontal')
+separator.pack(fill='x', pady=10)
+
+tab4_frame3 = tk.Frame(tab4)
+tab4_frame3.pack(pady=5)
+tk.Label(tab4_frame3, text="버그가 발생하거나,", font=("맑은 고딕", 14)).grid(row=0, column=0)
+tk.Label(tab4_frame3, text="추가하고 싶은 기능이 생기면 언제든 연락주세요!!", font=("맑은 고딕", 14)).grid(row=1, column=0)
+tk.Label(tab4_frame3, text="당신을 응원하는 김팔랑 드림♥️", font=("맑은 고딕", 14)).grid(row=3, column=0)
+
+# // 탭4 - 설정 영역
 
 root.mainloop()
