@@ -1,67 +1,15 @@
 import os
-import requests
-from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-from PIL import Image
-from io import BytesIO
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
 from tkinter import messagebox
 import json
+from PIL import Image, ImageTk
+import pytesseract
+import datetime
 
-
-def fetch_images(url, folder):
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-
-    # Selenium으로 웹페이지 열기
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service)
-    driver.get(url)
-
-    # 페이지 소스 가져오기
-    html = driver.page_source
-    driver.quit()
-
-    # BeautifulSoup으로 이미지 태그 찾기
-    soup = BeautifulSoup(html, 'html.parser')
-    img_tags = soup.find_all('img')
-
-    # 이미지 다운로드 및 저장
-    for idx, img in enumerate(img_tags):
-        img_url = img.get('src')
-        if not img_url:
-            continue
-
-        try:
-            img_data = requests.get(img_url).content
-            img_name = os.path.join(folder, f'image_{idx + 1}.jpg')
-
-            with open(img_name, 'wb') as img_file:
-                img_file.write(img_data)
-
-            # 이미지 검증 및 열기
-            img = Image.open(BytesIO(img_data))
-            img.verify()
-            print(f"Saved {img_name}")
-
-        except Exception as e:
-            print(f"Failed to save {img_url}: {e}")
-
-
-def start_scraping():
-    url = url_entry.get()
-    folder = folder_path.get()
-    fetch_images(url, folder)
-
-
-def browse_folder():
-    folder_selected = filedialog.askdirectory()
-    folder_path.set(folder_selected)
-
+# Tesseract OCR 경로 설정 (Windows의 경우)
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 # GUI를 만들어보자!
 root = tk.Tk()
@@ -73,15 +21,139 @@ root.attributes('-topmost', True)  # 창이 항상 맨 위에
 tab = ttk.Notebook(root)
 tab.pack()
 
-# tab1 = tk.Frame(tab)
-# tab2 = tk.Frame(tab)
+tab1 = tk.Frame(tab)
+tab2 = tk.Frame(tab)
 tab3 = tk.Frame(tab)
 tab4 = tk.Frame(tab)
 
-# tab.add(tab1, text="표 이미지 변환")
-# tab.add(tab2, text="이미지 다운로드")
+tab.add(tab1, text="이미지 변환")
+tab.add(tab2, text="이미지 다운로드")
 tab.add(tab3, text="부가기능")
 tab.add(tab4, text="설정")
+
+# 전역 리스트 변수
+converted_list = []
+
+# 탭1 - 이미지 변환 영역
+def process_image(image_path):
+    # Use pytesseract to do OCR on the image
+    text = pytesseract.image_to_string(Image.open(image_path), lang='eng')
+    print(text)
+    # Split the text by lines and process it
+    lines = text.splitlines()
+    processed_data = []
+    for line in lines:
+        if line.strip():
+            parts = line.split()
+            if len(parts) == 2:
+                no, serial = parts
+                processed_data.append({
+                    "no": no,
+                    "serial": serial,
+                    "processed": "false"
+                })
+    return processed_data
+
+
+def load_image():
+    # Open a file dialog to select an image file
+    file_path = filedialog.askopenfilename(filetypes=[("Image files", "*.png;*.jpg;*.jpeg")])
+    if not file_path:
+        return
+
+    # Display the image in the Tkinter window
+    img = Image.open(file_path)
+    img.thumbnail((400, 400))
+    img = ImageTk.PhotoImage(img)
+    imgLabel.config(image=img)
+    imgLabel.image = img
+
+    # Process the image and print the result
+    global converted_list
+    converted_list = process_image(file_path)
+    # for item in data_list:
+    #     print(item)
+    update_table(converted_list)
+    save_to_file(converted_list)
+
+def update_table(data):
+    for i in tree.get_children():
+        tree.delete(i)
+    for item in data:
+        tree.insert("", "end", values=(item["no"], item["serial"], item["processed"]))
+
+def save_to_file(data):
+    today_date = datetime.datetime.now().strftime("%Y%m%d")
+    file_name = f"{today_date}_converted.txt"
+    with open(file_name, "w", encoding="utf-8") as file:
+        for item in data:
+            file.write(f'{item["no"]}\t{item["serial"]}\t{item["processed"]}\n')
+
+def edit_cell(event):
+    selected_item = tree.selection()[0]
+    column = tree.identify_column(event.x)
+    if column == '#2':  # Only allow editing for the 'serial' column
+        x, y, width, height = tree.bbox(selected_item, column)
+        modi_entry.delete(0, tk.END)
+        modi_entry.insert(0, tree.item(selected_item, 'values')[1])
+        modi_entry.focus()
+        modi_entry.bind("<Return>", lambda e: save_edit(modi_entry, selected_item, 1))
+        modi_entry.bind("<FocusOut>", lambda e: save_edit(modi_entry, selected_item, 1))
+
+def save_edit(entry, item, column_index):
+    new_value = entry.get()
+    tree.set(item, column=column_index, value=new_value)
+    # Update the global data_list with the new value
+    item_index = tree.index(item)
+    global converted_list
+    converted_list[item_index]["serial"] = new_value
+
+# Set up the main Tkinter window
+tab1_frame1 = tk.Frame(tab1)
+tab1_frame1.pack(pady=5)
+
+load_img_btn = tk.Button(tab1_frame1, text="Load Image", command=load_image)
+load_img_btn.grid(row=0, column=0, columnspan=4, padx=10, pady=10)
+
+imgLabel = tk.Label(tab1_frame1)
+imgLabel.grid(row=1, column=0, padx=10, pady=10)
+
+# 구분선
+separator = ttk.Separator(tab1_frame1, orient='vertical')
+separator.grid(row=1, column=1, sticky='ns', padx=2)
+
+# Treeview for displaying data
+columns = ("no", "serial", "processed")
+tree = ttk.Treeview(tab1_frame1, columns=columns, show="headings", height=20)
+
+tree.heading("no", text="No")
+tree.heading("serial", text="Serial")
+tree.heading("processed", text="Processed")
+
+tree.column("no", width=50, anchor="center")
+tree.column("serial", width=150, anchor="center")
+tree.column("processed", width=100, anchor="center")
+
+tree.grid(row=1, column=3, padx=10, pady=10)
+
+tree.bind("<Double-1>", edit_cell)
+
+modi_entry = tk.Entry(tab1_frame1)
+modi_entry.grid(row=2, column=0, columnspan=4, padx=10, pady=10)
+
+
+# // 탭1 - 이미지 변환
+
+# 탭2 - 이미지 다운로드
+tab2_frame1 = tk.Frame(tab2)
+tab2_frame1.pack(pady=5)
+
+tempLabel = tk.Label(tab2_frame1,height=10, width=30)
+tempLabel.grid(row=0, column=0, padx=10, pady=10)
+tab2_button = tk.Button(tab2_frame1, text="Print Data", command=lambda: print(converted_list))
+tab2_button.grid(row=0, column=1, padx=10, pady=10)
+
+# // 탭2 - 이미지 다운로드
 
 # 탭3 - 부가기능 영역
 # 부가기능 - 대소문자 변환
@@ -103,7 +175,8 @@ etc_cvt_input_after.grid(row=1, column=1, padx=5, pady=5)
 btn_cvt_copy = tk.Button(tab3_frame1, text="복사", command=lambda: copy_entry_text(etc_cvt_input_after))
 btn_cvt_copy.grid(row=1, column=2, padx=5, pady=5)
 
-btn_delete = tk.Button(tab3_frame1, text="모두 지우기",command=lambda: remove_text(etc_cvt_input_before, etc_cvt_input_after))
+btn_delete = tk.Button(tab3_frame1, text="모두 지우기",
+                       command=lambda: remove_text(etc_cvt_input_before, etc_cvt_input_after))
 btn_delete.grid(row=2, column=1, padx=5, pady=5)
 
 
@@ -331,10 +404,13 @@ tab4_frame1.pack(pady=5)
 tk.Label(tab4_frame1, text="전체 투명도 조절", font=("맑은 고딕", 14)).grid(row=0, column=0)
 
 scaleVar = tk.IntVar()
+
+
 def scaleSelect(self):
     value = "값 : " + str(scale.get())
     scaleLabel.config(text=value)
     root.attributes('-alpha', scale.get() / 100)  # 투명도 설정
+
 
 scaleVar.set(100)  # 초기값 100 설정
 scale = tk.Scale(tab4_frame1,
@@ -345,10 +421,10 @@ scale = tk.Scale(tab4_frame1,
                  tickinterval=10,
                  from_=10,
                  to=100,
-                 resolution =10,
+                 resolution=10,
                  width=15,
                  length=300)
-scale.grid(row=1,column=0, padx=10, pady=10)
+scale.grid(row=1, column=0, padx=10, pady=10)
 
 scaleLabel = tk.Label(tab4_frame1, text="값 : 0")
 scaleLabel.grid(row=2, column=0)
@@ -366,6 +442,7 @@ btn_toggle_always_up.grid(row=1, column=0, padx=5, pady=5)
 toggleLabel = tk.Label(tab4_frame2, text="현재 상태 : 항상 맨 위로")
 toggleLabel.grid(row=2, column=0)
 
+
 def onToggleAlwaysUp():
     if root.attributes('-topmost'):
         root.attributes('-topmost', False)
@@ -375,6 +452,8 @@ def onToggleAlwaysUp():
         toggleLabel.config(text="현재 상태 : 항상 맨 위로")
 
         # 구분선
+
+
 separator = ttk.Separator(tab4, orient='horizontal')
 separator.pack(fill='x', pady=10)
 
