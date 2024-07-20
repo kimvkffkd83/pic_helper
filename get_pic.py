@@ -7,9 +7,46 @@ import json
 from PIL import Image, ImageTk
 import pytesseract
 import datetime
+import requests
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+import time
+import base64
+from selenium.webdriver.common.by import By
+
+# 전역 변수들
 
 # Tesseract OCR 경로 설정 (Windows의 경우)
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
+# 이미지를
+converted_list = []
+
+
+# 설정 관련 파일명
+
+brand_name = "벤셔먼"
+default_site_url = "https://bensherman.co.kr"
+default_photo_url = "https://lemonshop.kr/image/BenSherman/"
+
+before_folder = ""
+after_folder = ""
+
+
+# 키워드 데이터 파일명
+ECT_KEYWORD_FILE = 'keyword.json'
+
+# 초기 키워드 데이터
+initial_data = {
+    "상의1": "캐주얼자켓, 캐주얼아우터, 여름아우터, 여름자켓, 청자켓",
+    "상의2": "반팔티, 캐주얼반팔, 반팔티셔츠, 쿨티셔츠",
+    "바지": "키워드1, 키워드2",
+    "신발": "키워드3, 키워드4",
+    "가방": "키워드5, 키워드6"
+}
+# // 전역 변수들
+
 
 # GUI를 만들어보자!
 root = tk.Tk()
@@ -27,12 +64,9 @@ tab3 = tk.Frame(tab)
 tab4 = tk.Frame(tab)
 
 tab.add(tab1, text="이미지 변환")
-tab.add(tab2, text="이미지 다운로드")
+tab.add(tab2, text="이미지 서칭")
 tab.add(tab3, text="부가기능")
 tab.add(tab4, text="설정")
-
-# 전역 리스트 변수
-converted_list = []
 
 # 탭1 - 이미지 변환 영역
 def process_image(image_path):
@@ -42,16 +76,18 @@ def process_image(image_path):
     # Split the text by lines and process it
     lines = text.splitlines()
     processed_data = []
-    for line in lines:
+
+    for index, line in enumerate(lines):  # Correctly use enumerate to get index and line
         if line.strip():
             parts = line.split()
-            if len(parts) == 2:
-                no, serial = parts
+            if len(parts) == 2:  # Ensure the line has exactly two parts
+                serial = parts[1]
                 processed_data.append({
-                    "no": no,
+                    "no": str(index),
                     "serial": serial,
                     "processed": "false"
                 })
+
     return processed_data
 
 
@@ -108,6 +144,10 @@ def save_edit(entry, item, column_index):
     global converted_list
     converted_list[item_index]["serial"] = new_value
 
+    print("여기임")
+    print(converted_list)
+    save_to_file(converted_list)
+
 # Set up the main Tkinter window
 tab1_frame1 = tk.Frame(tab1)
 tab1_frame1.pack(pady=5)
@@ -145,13 +185,210 @@ modi_entry.grid(row=2, column=0, columnspan=4, padx=10, pady=10)
 # // 탭1 - 이미지 변환
 
 # 탭2 - 이미지 다운로드
+
+def create_directory_structure(base_path):
+    today = datetime.datetime.now().strftime("%Y%m%d")
+    base_folder = os.path.join(base_path, f"스크랩_{today}")
+    before_folder = os.path.join(base_folder, "before")
+    after_folder = os.path.join(base_folder, "after")
+
+    os.makedirs(before_folder, exist_ok=True)
+    os.makedirs(after_folder, exist_ok=True)
+
+    return before_folder, after_folder
+
+
+# base64 인코딩된 이미지 데이터를 저장하는 함수
+def save_base64_image(base64_image_str, file_path):
+    # 'data:image/png;base64,' 부분을 제거
+    print(base64_image_str)
+    base64_image_str = base64_image_str.split(',')[1]
+    # base64 문자열을 바이너리 데이터로 디코딩
+    image_data = base64.b64decode(base64_image_str)
+    print(image_data)
+    # 파일로 저장
+    with open(file_path, 'wb') as image_file:
+        image_file.write(image_data)
+    print(f"Saved image to {file_path}")
+def save_image(headers, product_folder, index, img_ext, img_url, product_code):
+    try:
+        index += 1
+        img_url = img_url+str(index)+'.'+img_ext
+        response = requests.get(img_url,headers=headers)
+        response.raise_for_status()  # 요청이 성공했는지 확인
+
+        img_data = response.content
+        img_ext = 'jpg' if img_url.endswith('.jpg') else 'png'
+        img_name = f"{product_code}_0{index}.{img_ext}" if 'info' not in img_url else 'info'
+        img_path = os.path.join(product_folder, img_name)
+
+        with open(img_path, 'wb') as thumb_img_file:
+            thumb_img_file.write(img_data)
+        print(f"Saved image {img_name} from {img_url}")
+    except requests.RequestException as e:
+        print(f"Failed to download image: {e}")
+
+def fetch_images_with_selenium(brand_name, product_code, site, before_folder):
+    print(f"Fetching images for {product_code} from site {site}")  # 디버깅 로그
+    search_query = f"{product_code}"
+    search_url = f"{site}/product/search.html?banner_action=&keyword={search_query}"
+    print(f"search_url: {search_url}")  # 디버깅 로그
+
+    # 품번별 폴더 생성
+    product_folder = os.path.join(before_folder, product_code)
+    os.makedirs(product_folder, exist_ok=True)
+
+    # Selenium 웹드라이버 설정
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")  # 백그라운드에서 실행
+    driver_path = r'C:\Program Files\Driver\chromedriver.exe'  # 실제 chromedriver의 경로
+    driver_service = Service(driver_path)
+    driver = webdriver.Chrome(service=driver_service, options=chrome_options)
+
+    try:
+        driver.get(search_url)
+        time.sleep(3)  # JavaScript가 로드될 때까지 기다립니다
+
+        user_agent = driver.execute_script("return navigator.userAgent;")
+        print(f"User-Agent: {user_agent}")
+        headers = {
+            "User-Agent": user_agent
+        }
+
+        # 첫 번째 검색 결과 클릭
+        first_result = driver.find_element(By.CSS_SELECTOR, '.thumbnail .prdImg a')
+        product_page_url = first_result.get_attribute('href')
+        print(f"product_page_url: {product_page_url}")
+        driver.get(product_page_url)
+        time.sleep(3)
+
+        # 썸네일 추출하기
+        thumb = driver.find_elements(By.CLASS_NAME, 'ThumbImage')
+        if thumb:
+            thumb_img_url = thumb[0].get_attribute('src')
+            print(f"thumb_img_url: {thumb_img_url}")
+            if thumb_img_url and (thumb_img_url.endswith('.jpg') or thumb_img_url.endswith('.png')):
+
+                try:
+                    response = requests.get(thumb_img_url,headers=headers)
+                    response.raise_for_status()  # 요청이 성공했는지 확인
+
+                    thumb_img_data = response.content
+                    thumb_img_ext = 'jpg' if thumb_img_url.endswith('.jpg') else 'png'
+                    thumb_img_name = f"{product_code}_thumb.{thumb_img_ext}" if 'info' not in thumb_img_url else 'info'
+                    thumb_img_path = os.path.join(product_folder, thumb_img_name)
+
+                    with open(thumb_img_path, 'wb') as thumb_img_file:
+                        thumb_img_file.write(thumb_img_data)
+                    print(f"Saved image {thumb_img_name} from {product_page_url}")
+                except requests.RequestException as e:
+                    print(f"Failed to download image: {e}")
+        else:
+            print("No thumbnail images found on the product page.")
+
+        product_url = default_photo_url+product_code+"_0"
+        for i in range(4):
+            save_image(headers, product_folder, i,'jpg', product_url, product_code)
+
+
+
+    finally:
+        driver.quit()
+
+    # 'converted_list' 업데이트
+    update_converted_list(product_code, "true")
+
+def update_converted_list(product_code, status):
+    global converted_list
+    for item in converted_list:
+        if item['serial'] == product_code:
+            item['processed'] = status
+            break
+
+def save_converted_list_to_file(file_path):
+    with open(file_path, 'w') as file:
+        for item in converted_list:
+            line = f"{item['no']}\t{item['serial']}\t{item['processed']}\n"
+            file.write(line)
+
+def load_converted_list_from_file(file_path):
+    global converted_list
+    converted_list = []
+    try:
+        with open(file_path, 'r') as file:
+            for line in file:
+                no, serial, processed = line.strip().split('\t')
+                converted_list.append({'no': no, 'serial': serial, 'processed': processed})
+    except Exception as e:
+        print(f"Error loading converted list from file: {e}")
+
+def on_set_button_click():
+    global base_path, before_folder, after_folder
+    base_path = entry_save_location.get() or os.path.expanduser("~\\Desktop")
+    before_folder, after_folder = create_directory_structure(base_path)
+    messagebox.showinfo("정보", "세팅이 완료되었습니다.")
+
+def on_start_button_click():
+    global is_running
+    is_running = True
+    today = datetime.datetime.now().strftime("%Y%m%d")
+    converted_file_path = os.path.join(base_path, f"{today}_converted.txt")
+
+    print("Starting image collection...")  # 디버깅 로그
+
+    for item in converted_list:
+        if item['processed'] == "false" and is_running:
+            print(f"Processing item {item['serial']}")  # 디버깅 로그
+            # fetch_images(brand_name, item['serial'], entry_search_site.get() or default_site_url, before_folder)
+            fetch_images_with_selenium(brand_name, item['serial'], entry_search_site.get() or default_site_url, before_folder)
+
+    save_converted_list_to_file(converted_file_path)
+    print("Image collection complete")  # 디버깅 로그
+
+
+def on_stop_button_click():
+    global is_running
+    is_running = False
+    today = datetime.datetime.now().strftime("%Y%m%d")
+    converted_file_path = os.path.join(base_path, f"{today}_converted.txt")
+    save_converted_list_to_file(converted_file_path)
+
+def on_restart_button_click():
+    global is_running
+    today = datetime.datetime.now().strftime("%Y%m%d")
+    converted_file_path = os.path.join(base_path, f"{today}_converted.txt")
+    load_converted_list_from_file(converted_file_path)
+    is_running = True
+    on_start_button_click()
+
 tab2_frame1 = tk.Frame(tab2)
 tab2_frame1.pack(pady=5)
 
-tempLabel = tk.Label(tab2_frame1,height=10, width=30)
-tempLabel.grid(row=0, column=0, padx=10, pady=10)
-tab2_button = tk.Button(tab2_frame1, text="Print Data", command=lambda: print(converted_list))
-tab2_button.grid(row=0, column=1, padx=10, pady=10)
+tk.Label(tab2_frame1, text="브랜드명 : ").grid(row=0, column=0, padx=5, pady=5, sticky='e')
+entry_brand = tk.Entry(tab2_frame1)
+entry_brand.grid(row=0, column=1, padx=5, pady=5)
+
+tk.Label(tab2_frame1, text="저장할 위치 : ").grid(row=1, column=0, padx=5, pady=5, sticky='e')
+entry_save_location = tk.Entry(tab2_frame1)
+entry_save_location.grid(row=1, column=1, padx=5, pady=5)
+
+tk.Label(tab2_frame1, text="검색할 사이트 : ").grid(row=2, column=0, padx=5, pady=5, sticky='e')
+entry_search_site = tk.Entry(tab2_frame1)
+entry_search_site.grid(row=2, column=1, padx=5, pady=5)
+
+# 버튼들
+btn_set = tk.Button(tab2_frame1, text="세팅하기", command=on_set_button_click)
+btn_set.grid(row=3, column=0, padx=5, pady=5)
+
+btn_start = tk.Button(tab2_frame1, text="수집하기", command=on_start_button_click)
+btn_start.grid(row=3, column=1, padx=5, pady=5)
+
+btn_stop = tk.Button(tab2_frame1, text="중지하기", command=on_stop_button_click)
+btn_stop.grid(row=3, column=2, padx=5, pady=5)
+
+btn_restart = tk.Button(tab2_frame1, text="다시 시작하기", command=on_restart_button_click)
+btn_restart.grid(row=3, column=3, padx=5, pady=5)
+
 
 # // 탭2 - 이미지 다운로드
 
@@ -248,25 +485,6 @@ btn_kwd_reg.grid(row=3, column=6, padx=5, pady=5)
 
 btn_kwd_del = tk.Button(tab3_frame2, text="삭제", command=lambda: del_item(etc_input_item))
 btn_kwd_del.grid(row=3, column=7, padx=5, pady=5)
-
-# 복사
-# 수정
-# 새로 등록
-# 삭제
-
-
-# 데이터 파일 경로
-ECT_KEYWORD_FILE = 'keyword.json'
-
-# 초기 데이터
-initial_data = {
-    "상의1": "캐주얼자켓, 캐주얼아우터, 여름아우터, 여름자켓, 청자켓",
-    "상의2": "반팔티, 캐주얼반팔, 반팔티셔츠, 쿨티셔츠",
-    "바지": "키워드1, 키워드2",
-    "신발": "키워드3, 키워드4",
-    "가방": "키워드5, 키워드6"
-}
-
 
 # 데이터 로드 함수
 def load_data():
@@ -459,9 +677,15 @@ separator.pack(fill='x', pady=10)
 
 tab4_frame3 = tk.Frame(tab4)
 tab4_frame3.pack(pady=5)
-tk.Label(tab4_frame3, text="버그가 발생하거나,", font=("맑은 고딕", 14)).grid(row=0, column=0)
-tk.Label(tab4_frame3, text="추가하고 싶은 기능이 생기면 언제든 연락주세요!!", font=("맑은 고딕", 14)).grid(row=1, column=0)
-tk.Label(tab4_frame3, text="당신을 응원하는 김팔랑 드림♥️", font=("맑은 고딕", 14)).grid(row=3, column=0)
+
+separator = ttk.Separator(tab4, orient='horizontal')
+separator.pack(fill='x', pady=10)
+
+tab4_frame4 = tk.Frame(tab4)
+tab4_frame4.pack(pady=5)
+tk.Label(tab4_frame4, text="버그가 발생하거나,", font=("맑은 고딕", 14)).grid(row=0, column=0)
+tk.Label(tab4_frame4, text="추가하고 싶은 기능이 생기면 언제든 연락주세요!!", font=("맑은 고딕", 14)).grid(row=1, column=0)
+tk.Label(tab4_frame4, text="당신을 응원하는 김팔랑 드림♥️", font=("맑은 고딕", 14)).grid(row=3, column=0)
 
 # // 탭4 - 설정 영역
 
