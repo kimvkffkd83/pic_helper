@@ -17,41 +17,48 @@ from selenium.webdriver.common.by import By
 
 # 전역 변수들
 
-# Tesseract OCR 경로 설정 (Windows의 경우)
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-
-# 이미지를
-converted_list = []
-
-
 # 설정 관련 파일명
+ETC_SETTING_FILE = "setting.json"
+setting_initial_data = {
+    "default_save_url": "Desktop",  #최종 이미지 파일들 저장할 위치
+    "default_site_url": "https://bensherman.co.kr", #썸네일 가져올 주소
+    "default_photo_url": "https://lemonshop.kr/image/BenSherman/", #세부 이미지 가져올 주소
+    "tesseract_url": r'C:\Program Files\Tesseract-OCR\tesseract.exe', #테서렉트 설치 위치
+    "chrome_driver_url": r'C:\Program Files\Driver\chromedriver.exe', #크롬드라이버 설치 위치
+    "load_amount": "15", #스크랩시 한번에 불러올 양
+    "alpha": "100", #불투명도
+    "always_up": "true", #항상 맨위로
+}
 
-brand_name = "벤셔먼"
-default_site_url = "https://bensherman.co.kr"
-default_photo_url = "https://lemonshop.kr/image/BenSherman/"
-
+base_path = ""
 before_folder = ""
 after_folder = ""
 
+# Tesseract OCR 경로 설정 (Windows의 경우)
+pytesseract.pytesseract.tesseract_cmd = setting_initial_data.get("tesseract_url")
 
 # 키워드 데이터 파일명
 ECT_KEYWORD_FILE = 'keyword.json'
 
 # 초기 키워드 데이터
-initial_data = {
+kwd_initial_data = {
     "상의1": "캐주얼자켓, 캐주얼아우터, 여름아우터, 여름자켓, 청자켓",
     "상의2": "반팔티, 캐주얼반팔, 반팔티셔츠, 쿨티셔츠",
     "바지": "키워드1, 키워드2",
     "신발": "키워드3, 키워드4",
     "가방": "키워드5, 키워드6"
 }
+
+# 품목 리스트를 저장할 전역 변수
+converted_list = []
+
 # // 전역 변수들
 
 
 # GUI를 만들어보자!
 root = tk.Tk()
 root.title("겸댕이 파이팅!♥️")
-root.geometry("500x650")
+root.geometry("700x700")
 root.resizable(False, False)
 root.attributes('-topmost', True)  # 창이 항상 맨 위에
 
@@ -67,6 +74,7 @@ tab.add(tab1, text="이미지 변환")
 tab.add(tab2, text="이미지 서칭")
 tab.add(tab3, text="부가기능")
 tab.add(tab4, text="설정")
+
 
 # 탭1 - 이미지 변환 영역
 def process_image(image_path):
@@ -112,11 +120,13 @@ def load_image():
     update_table(converted_list)
     save_to_file(converted_list)
 
+
 def update_table(data):
     for i in tree.get_children():
         tree.delete(i)
     for item in data:
         tree.insert("", "end", values=(item["no"], item["serial"], item["processed"]))
+
 
 def save_to_file(data):
     today_date = datetime.datetime.now().strftime("%Y%m%d")
@@ -124,6 +134,7 @@ def save_to_file(data):
     with open(file_name, "w", encoding="utf-8") as file:
         for item in data:
             file.write(f'{item["no"]}\t{item["serial"]}\t{item["processed"]}\n')
+
 
 def edit_cell(event):
     selected_item = tree.selection()[0]
@@ -136,6 +147,7 @@ def edit_cell(event):
         modi_entry.bind("<Return>", lambda e: save_edit(modi_entry, selected_item, 1))
         modi_entry.bind("<FocusOut>", lambda e: save_edit(modi_entry, selected_item, 1))
 
+
 def save_edit(entry, item, column_index):
     new_value = entry.get()
     tree.set(item, column=column_index, value=new_value)
@@ -143,43 +155,41 @@ def save_edit(entry, item, column_index):
     item_index = tree.index(item)
     global converted_list
     converted_list[item_index]["serial"] = new_value
-
-    print("여기임")
-    print(converted_list)
     save_to_file(converted_list)
+
 
 # Set up the main Tkinter window
 tab1_frame1 = tk.Frame(tab1)
 tab1_frame1.pack(pady=5)
 
 load_img_btn = tk.Button(tab1_frame1, text="Load Image", command=load_image)
-load_img_btn.grid(row=0, column=0, columnspan=4, padx=10, pady=10)
+load_img_btn.grid(row=0, column=0, columnspan=5, padx=10, pady=10)
 
 imgLabel = tk.Label(tab1_frame1)
 imgLabel.grid(row=1, column=0, padx=10, pady=10)
 
 # 구분선
-separator = ttk.Separator(tab1_frame1, orient='vertical')
-separator.grid(row=1, column=1, sticky='ns', padx=2)
+separator_t1_f1 = ttk.Separator(tab1_frame1, orient='vertical')
+separator_t1_f1.grid(row=1, column=1, sticky='ns', padx=2)
 
 # Treeview for displaying data
-columns = ("no", "serial", "processed")
+columns = ("no", "serial")
 tree = ttk.Treeview(tab1_frame1, columns=columns, show="headings", height=20)
 
 tree.heading("no", text="No")
 tree.heading("serial", text="Serial")
-tree.heading("processed", text="Processed")
+# tree.heading("processed", text="Processed")
 
 tree.column("no", width=50, anchor="center")
 tree.column("serial", width=150, anchor="center")
-tree.column("processed", width=100, anchor="center")
+# tree.column("processed", width=100, anchor="center")
 
 tree.grid(row=1, column=3, padx=10, pady=10)
 
 tree.bind("<Double-1>", edit_cell)
 
 modi_entry = tk.Entry(tab1_frame1)
-modi_entry.grid(row=2, column=0, columnspan=4, padx=10, pady=10)
+modi_entry.grid(row=2, column=0, columnspan=5, padx=10, pady=10)
 
 
 # // 탭1 - 이미지 변환
@@ -210,16 +220,17 @@ def save_base64_image(base64_image_str, file_path):
     with open(file_path, 'wb') as image_file:
         image_file.write(image_data)
     print(f"Saved image to {file_path}")
-def save_image(headers, product_folder, index, img_ext, img_url, product_code):
+
+
+def save_image(headers, product_folder,img_ext, img_url, product_code):
     try:
-        index += 1
-        img_url = img_url+str(index)+'.'+img_ext
-        response = requests.get(img_url,headers=headers)
+        img_url = img_url + '.' + img_ext
+        response = requests.get(img_url, headers=headers)
         response.raise_for_status()  # 요청이 성공했는지 확인
 
         img_data = response.content
         img_ext = 'jpg' if img_url.endswith('.jpg') else 'png'
-        img_name = f"{product_code}_0{index}.{img_ext}" if 'info' not in img_url else 'info'
+        img_name = f"{product_code}_LB.{img_ext}"
         img_path = os.path.join(product_folder, img_name)
 
         with open(img_path, 'wb') as thumb_img_file:
@@ -228,7 +239,25 @@ def save_image(headers, product_folder, index, img_ext, img_url, product_code):
     except requests.RequestException as e:
         print(f"Failed to download image: {e}")
 
-def fetch_images_with_selenium(brand_name, product_code, site, before_folder):
+def save_image_index(headers, product_folder, index, img_ext, img_url, product_code):
+    try:
+        img_url = img_url + str(index) + '.' + img_ext
+        response = requests.get(img_url, headers=headers)
+        response.raise_for_status()  # 요청이 성공했는지 확인
+
+        img_data = response.content
+        img_ext = 'jpg' if img_url.endswith('.jpg') else 'png'
+        img_name = f"{product_code}_0{index}.{img_ext}"
+        img_path = os.path.join(product_folder, img_name)
+
+        with open(img_path, 'wb') as thumb_img_file:
+            thumb_img_file.write(img_data)
+        print(f"Saved image {img_name} from {img_url}")
+    except requests.RequestException as e:
+        print(f"Failed to download image: {e}")
+
+
+def fetch_images_with_selenium(product_code, site, before_folder):
     print(f"Fetching images for {product_code} from site {site}")  # 디버깅 로그
     search_query = f"{product_code}"
     search_url = f"{site}/product/search.html?banner_action=&keyword={search_query}"
@@ -241,7 +270,7 @@ def fetch_images_with_selenium(brand_name, product_code, site, before_folder):
     # Selenium 웹드라이버 설정
     chrome_options = Options()
     chrome_options.add_argument("--headless")  # 백그라운드에서 실행
-    driver_path = r'C:\Program Files\Driver\chromedriver.exe'  # 실제 chromedriver의 경로
+    driver_path = setting_initial_data.get("chrome_driver_url")  # 실제 chromedriver의 경로
     driver_service = Service(driver_path)
     driver = webdriver.Chrome(service=driver_service, options=chrome_options)
 
@@ -270,12 +299,12 @@ def fetch_images_with_selenium(brand_name, product_code, site, before_folder):
             if thumb_img_url and (thumb_img_url.endswith('.jpg') or thumb_img_url.endswith('.png')):
 
                 try:
-                    response = requests.get(thumb_img_url,headers=headers)
+                    response = requests.get(thumb_img_url, headers=headers)
                     response.raise_for_status()  # 요청이 성공했는지 확인
 
                     thumb_img_data = response.content
                     thumb_img_ext = 'jpg' if thumb_img_url.endswith('.jpg') else 'png'
-                    thumb_img_name = f"{product_code}_thumb.{thumb_img_ext}" if 'info' not in thumb_img_url else 'info'
+                    thumb_img_name = f"{product_code}_00.{thumb_img_ext}" if 'info' not in thumb_img_url else 'info'
                     thumb_img_path = os.path.join(product_folder, thumb_img_name)
 
                     with open(thumb_img_path, 'wb') as thumb_img_file:
@@ -286,9 +315,13 @@ def fetch_images_with_selenium(brand_name, product_code, site, before_folder):
         else:
             print("No thumbnail images found on the product page.")
 
-        product_url = default_photo_url+product_code+"_0"
+        product_url = setting_initial_data.get("default_photo_url") + product_code + "_LB"
+        save_image(headers, product_folder, 'jpg', product_url, product_code)
+
+        product_url = setting_initial_data.get("default_photo_url") + product_code + "_0"
         for i in range(4):
-            save_image(headers, product_folder, i,'jpg', product_url, product_code)
+            i += 1
+            save_image_index(headers, product_folder, i, 'jpg', product_url, product_code)
 
 
 
@@ -298,6 +331,7 @@ def fetch_images_with_selenium(brand_name, product_code, site, before_folder):
     # 'converted_list' 업데이트
     update_converted_list(product_code, "true")
 
+
 def update_converted_list(product_code, status):
     global converted_list
     for item in converted_list:
@@ -305,11 +339,13 @@ def update_converted_list(product_code, status):
             item['processed'] = status
             break
 
+
 def save_converted_list_to_file(file_path):
     with open(file_path, 'w') as file:
         for item in converted_list:
             line = f"{item['no']}\t{item['serial']}\t{item['processed']}\n"
             file.write(line)
+
 
 def load_converted_list_from_file(file_path):
     global converted_list
@@ -322,11 +358,14 @@ def load_converted_list_from_file(file_path):
     except Exception as e:
         print(f"Error loading converted list from file: {e}")
 
+
 def on_set_button_click():
     global base_path, before_folder, after_folder
-    base_path = entry_save_location.get() or os.path.expanduser("~\\Desktop")
+    base_path = os.path.expanduser(f"~\\{setting_initial_data.get("default_save_url")}")
+    print(base_path)
     before_folder, after_folder = create_directory_structure(base_path)
     messagebox.showinfo("정보", "세팅이 완료되었습니다.")
+
 
 def on_start_button_click():
     global is_running
@@ -339,19 +378,13 @@ def on_start_button_click():
     for item in converted_list:
         if item['processed'] == "false" and is_running:
             print(f"Processing item {item['serial']}")  # 디버깅 로그
-            # fetch_images(brand_name, item['serial'], entry_search_site.get() or default_site_url, before_folder)
-            fetch_images_with_selenium(brand_name, item['serial'], entry_search_site.get() or default_site_url, before_folder)
+            fetch_images_with_selenium(item['serial'],
+                                       setting_initial_data.get("default_site_url"),
+                                       before_folder)
 
     save_converted_list_to_file(converted_file_path)
     print("Image collection complete")  # 디버깅 로그
 
-
-def on_stop_button_click():
-    global is_running
-    is_running = False
-    today = datetime.datetime.now().strftime("%Y%m%d")
-    converted_file_path = os.path.join(base_path, f"{today}_converted.txt")
-    save_converted_list_to_file(converted_file_path)
 
 def on_restart_button_click():
     global is_running
@@ -361,34 +394,35 @@ def on_restart_button_click():
     is_running = True
     on_start_button_click()
 
+
 tab2_frame1 = tk.Frame(tab2)
 tab2_frame1.pack(pady=5)
 
-tk.Label(tab2_frame1, text="브랜드명 : ").grid(row=0, column=0, padx=5, pady=5, sticky='e')
-entry_brand = tk.Entry(tab2_frame1)
-entry_brand.grid(row=0, column=1, padx=5, pady=5)
+# 데이터 목록
+tk.Label(tab2_frame1, text="데이터 확인").grid(row=0, column=0, padx=5, pady=5)
+tree_1_columns = ("no", "serial", "processed")
+tree_1 = ttk.Treeview(tab2_frame1, columns=tree_1_columns, show="headings", height=20)
+tree_1.heading("no", text="No")
+tree_1.heading("serial", text="Serial")
+tree_1.heading("processed", text="Processed")
+tree_1.column("no", width=50, anchor="center")
+tree_1.column("serial", width=150, anchor="center")
+tree_1.column("processed", width=100, anchor="center")
+tree_1.grid(row=1, column=0, rowspan=3, padx=10, pady=10)
 
-tk.Label(tab2_frame1, text="저장할 위치 : ").grid(row=1, column=0, padx=5, pady=5, sticky='e')
-entry_save_location = tk.Entry(tab2_frame1)
-entry_save_location.grid(row=1, column=1, padx=5, pady=5)
-
-tk.Label(tab2_frame1, text="검색할 사이트 : ").grid(row=2, column=0, padx=5, pady=5, sticky='e')
-entry_search_site = tk.Entry(tab2_frame1)
-entry_search_site.grid(row=2, column=1, padx=5, pady=5)
+# 구분선
+# separator = ttk.Separator(tab1_frame1, orient='vertical')
+# separator.grid(row=0, column=1, rowspan=3, sticky='ns', padx=2)
 
 # 버튼들
 btn_set = tk.Button(tab2_frame1, text="세팅하기", command=on_set_button_click)
-btn_set.grid(row=3, column=0, padx=5, pady=5)
+btn_set.grid(row=1, column=2, padx=5, pady=5)
 
 btn_start = tk.Button(tab2_frame1, text="수집하기", command=on_start_button_click)
-btn_start.grid(row=3, column=1, padx=5, pady=5)
-
-btn_stop = tk.Button(tab2_frame1, text="중지하기", command=on_stop_button_click)
-btn_stop.grid(row=3, column=2, padx=5, pady=5)
+btn_start.grid(row=2, column=2, padx=5, pady=5)
 
 btn_restart = tk.Button(tab2_frame1, text="다시 시작하기", command=on_restart_button_click)
-btn_restart.grid(row=3, column=3, padx=5, pady=5)
-
+btn_restart.grid(row=3, column=2, padx=5, pady=5)
 
 # // 탭2 - 이미지 다운로드
 
@@ -486,22 +520,23 @@ btn_kwd_reg.grid(row=3, column=6, padx=5, pady=5)
 btn_kwd_del = tk.Button(tab3_frame2, text="삭제", command=lambda: del_item(etc_input_item))
 btn_kwd_del.grid(row=3, column=7, padx=5, pady=5)
 
+
 # 데이터 로드 함수
-def load_data():
-    if not os.path.exists(ECT_KEYWORD_FILE):
-        save_data(initial_data)
-    with open(ECT_KEYWORD_FILE, 'r', encoding='utf-8') as file:
+def load_json_data(file_name, file_data):
+    if not os.path.exists(file_name):
+        save_data(file_name, file_data)
+    with open(file_name, 'r', encoding='utf-8') as file:
         return json.load(file)
 
 
 # 데이터 저장 함수
-def save_data(data):
-    with open(ECT_KEYWORD_FILE, 'w', encoding='utf-8') as file:
+def save_data(name, data):
+    with open(name, 'w', encoding='utf-8') as file:
         json.dump(data, file, ensure_ascii=False, indent=4)
 
 
 # 데이터 초기화
-keyword_data = load_data()
+keyword_data = load_json_data(ECT_KEYWORD_FILE, kwd_initial_data)
 
 # 초기 리스트박스 데이터 추가
 for item in keyword_data.keys():
@@ -616,10 +651,43 @@ def del_item(item_entry):
 # 탭4 - 설정 영역
 tk.Label(tab4, text="설정", font=("맑은 고딕", 14)).pack(pady=10)
 
+
+
 tab4_frame1 = tk.Frame(tab4)
 tab4_frame1.pack(pady=5)
 
-tk.Label(tab4_frame1, text="전체 투명도 조절", font=("맑은 고딕", 14)).grid(row=0, column=0)
+tk.Label(tab4_frame1, text="경로 설정", font=("맑은 고딕", 14)).grid(row=0, column=0, columnspan=2)
+
+# 데이터 초기화
+setting_data = load_json_data(ETC_SETTING_FILE, setting_initial_data)
+
+cnt = 1
+# 세팅 url 불러오기
+for item in setting_data.keys():
+    print(setting_data[item])
+    tk.Label(tab4_frame1, text=f'{item}').grid(row=cnt, column=0, padx=5, pady=5)
+    temp = tk.Entry(tab4_frame1, width=40)
+    temp.grid(row=cnt, column=1)
+    temp.insert(0,setting_data[item])
+    cnt +=1
+
+btn_setting_save = tk.Button(tab4_frame1, text="저장", command=lambda: update_data_from_entry())
+btn_setting_save.grid(row=cnt, column=0, columnspan=2, padx=5, pady=5)
+
+def update_data_from_entry():
+    # items = listbox.get(0, tk.END)
+    global setting_data
+    # data = {item: keyword_data.get(item, "") for item in items}
+    # save_data(data)
+
+
+separator_t4_f1 = ttk.Separator(tab4, orient='horizontal')
+separator_t4_f1.pack(fill='x', pady=10)
+
+tab4_frame2 = tk.Frame(tab4)
+tab4_frame2.pack(pady=5)
+
+tk.Label(tab4_frame2, text="전체 불투명도 조절", font=("맑은 고딕", 14)).grid(row=0, column=0)
 
 scaleVar = tk.IntVar()
 
@@ -631,7 +699,7 @@ def scaleSelect(self):
 
 
 scaleVar.set(100)  # 초기값 100 설정
-scale = tk.Scale(tab4_frame1,
+scale = tk.Scale(tab4_frame2,
                  variable=scaleVar,
                  command=scaleSelect,
                  orient="horizontal",
@@ -644,20 +712,20 @@ scale = tk.Scale(tab4_frame1,
                  length=300)
 scale.grid(row=1, column=0, padx=10, pady=10)
 
-scaleLabel = tk.Label(tab4_frame1, text="값 : 0")
+scaleLabel = tk.Label(tab4_frame2, text="값 : 0")
 scaleLabel.grid(row=2, column=0)
 
 # 구분선
-separator = ttk.Separator(tab4, orient='horizontal')
-separator.pack(fill='x', pady=10)
+separator_t4_f2 = ttk.Separator(tab4, orient='horizontal')
+separator_t4_f2.pack(fill='x', pady=10)
 
-tab4_frame2 = tk.Frame(tab4)
-tab4_frame2.pack(pady=5)
+tab4_frame3 = tk.Frame(tab4)
+tab4_frame3.pack(pady=5)
 
-tk.Label(tab4_frame2, text="항상 맨 위로", font=("맑은 고딕", 14)).grid(row=0, column=0)
-btn_toggle_always_up = tk.Button(tab4_frame2, text="변경", command=lambda: onToggleAlwaysUp())
+tk.Label(tab4_frame3, text="항상 맨 위로", font=("맑은 고딕", 14)).grid(row=0, column=0)
+btn_toggle_always_up = tk.Button(tab4_frame3, text="변경", command=lambda: onToggleAlwaysUp())
 btn_toggle_always_up.grid(row=1, column=0, padx=5, pady=5)
-toggleLabel = tk.Label(tab4_frame2, text="현재 상태 : 항상 맨 위로")
+toggleLabel = tk.Label(tab4_frame3, text="현재 상태 : 항상 맨 위로")
 toggleLabel.grid(row=2, column=0)
 
 
@@ -670,22 +738,6 @@ def onToggleAlwaysUp():
         toggleLabel.config(text="현재 상태 : 항상 맨 위로")
 
         # 구분선
-
-
-separator = ttk.Separator(tab4, orient='horizontal')
-separator.pack(fill='x', pady=10)
-
-tab4_frame3 = tk.Frame(tab4)
-tab4_frame3.pack(pady=5)
-
-separator = ttk.Separator(tab4, orient='horizontal')
-separator.pack(fill='x', pady=10)
-
-tab4_frame4 = tk.Frame(tab4)
-tab4_frame4.pack(pady=5)
-tk.Label(tab4_frame4, text="버그가 발생하거나,", font=("맑은 고딕", 14)).grid(row=0, column=0)
-tk.Label(tab4_frame4, text="추가하고 싶은 기능이 생기면 언제든 연락주세요!!", font=("맑은 고딕", 14)).grid(row=1, column=0)
-tk.Label(tab4_frame4, text="당신을 응원하는 김팔랑 드림♥️", font=("맑은 고딕", 14)).grid(row=3, column=0)
 
 # // 탭4 - 설정 영역
 
