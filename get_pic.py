@@ -20,14 +20,11 @@ from selenium.webdriver.common.by import By
 # 설정 관련 파일명
 ETC_SETTING_FILE = "setting.json"
 setting_initial_data = {
-    "default_save_url": "Desktop",  #최종 이미지 파일들 저장할 위치
-    "default_site_url": "https://bensherman.co.kr", #썸네일 가져올 주소
-    "default_photo_url": "https://lemonshop.kr/image/BenSherman/", #세부 이미지 가져올 주소
-    "tesseract_url": r'C:\Program Files\Tesseract-OCR\tesseract.exe', #테서렉트 설치 위치
-    "chrome_driver_url": r'C:\Program Files\Driver\chromedriver.exe', #크롬드라이버 설치 위치
-    "load_amount": "15", #스크랩시 한번에 불러올 양
-    "alpha": "100", #불투명도
-    "always_up": "true", #항상 맨위로
+    "default_save_url": "Desktop",  # 최종 이미지 파일들 저장할 위치
+    "default_site_url": "https://bensherman.co.kr",  # 썸네일 가져올 주소
+    "default_photo_url": "https://lemonshop.kr/image/BenSherman/",  # 세부 이미지 가져올 주소
+    "tesseract_url": r'C:\Program Files\Tesseract-OCR\tesseract.exe',  # 테서렉트 설치 위치
+    "chrome_driver_url": r'C:\Program Files\Driver\chromedriver.exe',  # 크롬드라이버 설치 위치
 }
 
 base_path = ""
@@ -38,7 +35,7 @@ after_folder = ""
 pytesseract.pytesseract.tesseract_cmd = setting_initial_data.get("tesseract_url")
 
 # 키워드 데이터 파일명
-ECT_KEYWORD_FILE = 'keyword.json'
+ETC_KEYWORD_FILE = 'keyword.json'
 
 # 초기 키워드 데이터
 kwd_initial_data = {
@@ -54,24 +51,32 @@ converted_list = []
 
 # // 전역 변수들
 
+# 데이터 로드 함수
+def load_json_data(file_name, file_data):
+    if not os.path.exists(file_name):
+        save_data(file_name, file_data)
+    with open(file_name, 'r', encoding='utf-8') as file:
+        return json.load(file)
+
+# 데이터 초기화
+setting_data = load_json_data(ETC_SETTING_FILE, setting_initial_data)
+# 데이터 초기화
+keyword_data = load_json_data(ETC_KEYWORD_FILE, kwd_initial_data)
 
 # GUI를 만들어보자!
 root = tk.Tk()
 root.title("겸댕이 파이팅!♥️")
 root.geometry("700x700")
 root.resizable(False, False)
-root.attributes('-topmost', True)  # 창이 항상 맨 위에
 
 tab = ttk.Notebook(root)
 tab.pack()
 
 tab1 = tk.Frame(tab)
-tab2 = tk.Frame(tab)
 tab3 = tk.Frame(tab)
 tab4 = tk.Frame(tab)
 
 tab.add(tab1, text="이미지 변환")
-tab.add(tab2, text="이미지 서칭")
 tab.add(tab3, text="부가기능")
 tab.add(tab4, text="설정")
 
@@ -122,10 +127,10 @@ def load_image():
 
 
 def update_table(data):
-    for i in tree.get_children():
-        tree.delete(i)
+    for i in tree_1.get_children():
+        tree_1.delete(i)
     for item in data:
-        tree.insert("", "end", values=(item["no"], item["serial"], item["processed"]))
+        tree_1.insert("", "end", values=(item["no"], item["serial"], item["processed"]))
 
 
 def save_to_file(data):
@@ -137,12 +142,12 @@ def save_to_file(data):
 
 
 def edit_cell(event):
-    selected_item = tree.selection()[0]
-    column = tree.identify_column(event.x)
+    selected_item = tree_1.selection()[0]
+    column = tree_1.identify_column(event.x)
     if column == '#2':  # Only allow editing for the 'serial' column
-        x, y, width, height = tree.bbox(selected_item, column)
+        x, y, width, height = tree_1.bbox(selected_item, column)
         modi_entry.delete(0, tk.END)
-        modi_entry.insert(0, tree.item(selected_item, 'values')[1])
+        modi_entry.insert(0, tree_1.item(selected_item, 'values')[1])
         modi_entry.focus()
         modi_entry.bind("<Return>", lambda e: save_edit(modi_entry, selected_item, 1))
         modi_entry.bind("<FocusOut>", lambda e: save_edit(modi_entry, selected_item, 1))
@@ -150,9 +155,9 @@ def edit_cell(event):
 
 def save_edit(entry, item, column_index):
     new_value = entry.get()
-    tree.set(item, column=column_index, value=new_value)
+    tree_1.set(item, column=column_index, value=new_value)
     # Update the global data_list with the new value
-    item_index = tree.index(item)
+    item_index = tree_1.index(item)
     global converted_list
     converted_list[item_index]["serial"] = new_value
     save_to_file(converted_list)
@@ -162,7 +167,7 @@ def save_edit(entry, item, column_index):
 tab1_frame1 = tk.Frame(tab1)
 tab1_frame1.pack(pady=5)
 
-load_img_btn = tk.Button(tab1_frame1, text="Load Image", command=load_image)
+load_img_btn = tk.Button(tab1_frame1, text="엑셀 이미지 넣기", command=load_image)
 load_img_btn.grid(row=0, column=0, columnspan=5, padx=10, pady=10)
 
 imgLabel = tk.Label(tab1_frame1)
@@ -174,22 +179,57 @@ separator_t1_f1.grid(row=1, column=1, sticky='ns', padx=2)
 
 # Treeview for displaying data
 columns = ("no", "serial")
-tree = ttk.Treeview(tab1_frame1, columns=columns, show="headings", height=20)
+tree_1 = ttk.Treeview(tab1_frame1, columns=columns, show="headings", height=15)
 
-tree.heading("no", text="No")
-tree.heading("serial", text="Serial")
-# tree.heading("processed", text="Processed")
+tree_1.heading("no", text="No")
+tree_1.heading("serial", text="Serial")
+# tree_1.heading("processed", text="Processed")
 
-tree.column("no", width=50, anchor="center")
-tree.column("serial", width=150, anchor="center")
-# tree.column("processed", width=100, anchor="center")
+tree_1.column("no", width=50, anchor="center")
+tree_1.column("serial", width=150, anchor="center")
+# tree_1.column("processed", width=100, anchor="center")
 
-tree.grid(row=1, column=3, padx=10, pady=10)
+tree_1.grid(row=1, column=3, padx=10, pady=10)
 
-tree.bind("<Double-1>", edit_cell)
+tree_1.bind("<Double-1>", edit_cell)
 
 modi_entry = tk.Entry(tab1_frame1)
 modi_entry.grid(row=2, column=0, columnspan=5, padx=10, pady=10)
+
+
+def on_set_button_click():
+    global base_path, before_folder, after_folder
+    base_path = os.path.expanduser(f"~\\{setting_data.get("default_save_url")}")
+    before_folder, after_folder = create_directory_structure(base_path)
+    messagebox.showinfo("정보", "세팅이 완료되었습니다.")
+
+
+def on_start_button_click():
+    global is_running
+    is_running = True
+    today = datetime.datetime.now().strftime("%Y%m%d")
+    converted_file_path = os.path.join(base_path, f"{today}_converted.txt")
+
+    print("Starting image collection...")  # 디버깅 로그
+
+    for item in converted_list:
+        if item['processed'] == "false" and is_running:
+            print(f"Processing item {item['serial']}")  # 디버깅 로그
+            fetch_images_with_selenium(item['serial'],
+                                       setting_initial_data.get("default_site_url"),
+                                       before_folder)
+
+    save_converted_list_to_file(converted_file_path)
+    print("Image collection complete")  # 디버깅 로그
+    messagebox.showinfo("정보", "수집이 완료되었습니다.")
+
+
+# 버튼들
+btn_set = tk.Button(tab1_frame1, text="세팅하기", command=on_set_button_click)
+btn_set.grid(row=3, column=0, columnspan=2, padx=5, pady=5)
+
+btn_start = tk.Button(tab1_frame1, text="수집하기", command=on_start_button_click)
+btn_start.grid(row=3, column=2, columnspan=2, padx=5, pady=5)
 
 
 # // 탭1 - 이미지 변환
@@ -359,73 +399,6 @@ def load_converted_list_from_file(file_path):
         print(f"Error loading converted list from file: {e}")
 
 
-def on_set_button_click():
-    global base_path, before_folder, after_folder
-    base_path = os.path.expanduser(f"~\\{setting_initial_data.get("default_save_url")}")
-    print(base_path)
-    before_folder, after_folder = create_directory_structure(base_path)
-    messagebox.showinfo("정보", "세팅이 완료되었습니다.")
-
-
-def on_start_button_click():
-    global is_running
-    is_running = True
-    today = datetime.datetime.now().strftime("%Y%m%d")
-    converted_file_path = os.path.join(base_path, f"{today}_converted.txt")
-
-    print("Starting image collection...")  # 디버깅 로그
-
-    for item in converted_list:
-        if item['processed'] == "false" and is_running:
-            print(f"Processing item {item['serial']}")  # 디버깅 로그
-            fetch_images_with_selenium(item['serial'],
-                                       setting_initial_data.get("default_site_url"),
-                                       before_folder)
-
-    save_converted_list_to_file(converted_file_path)
-    print("Image collection complete")  # 디버깅 로그
-
-
-def on_restart_button_click():
-    global is_running
-    today = datetime.datetime.now().strftime("%Y%m%d")
-    converted_file_path = os.path.join(base_path, f"{today}_converted.txt")
-    load_converted_list_from_file(converted_file_path)
-    is_running = True
-    on_start_button_click()
-
-
-tab2_frame1 = tk.Frame(tab2)
-tab2_frame1.pack(pady=5)
-
-# 데이터 목록
-tk.Label(tab2_frame1, text="데이터 확인").grid(row=0, column=0, padx=5, pady=5)
-tree_1_columns = ("no", "serial", "processed")
-tree_1 = ttk.Treeview(tab2_frame1, columns=tree_1_columns, show="headings", height=20)
-tree_1.heading("no", text="No")
-tree_1.heading("serial", text="Serial")
-tree_1.heading("processed", text="Processed")
-tree_1.column("no", width=50, anchor="center")
-tree_1.column("serial", width=150, anchor="center")
-tree_1.column("processed", width=100, anchor="center")
-tree_1.grid(row=1, column=0, rowspan=3, padx=10, pady=10)
-
-# 구분선
-# separator = ttk.Separator(tab1_frame1, orient='vertical')
-# separator.grid(row=0, column=1, rowspan=3, sticky='ns', padx=2)
-
-# 버튼들
-btn_set = tk.Button(tab2_frame1, text="세팅하기", command=on_set_button_click)
-btn_set.grid(row=1, column=2, padx=5, pady=5)
-
-btn_start = tk.Button(tab2_frame1, text="수집하기", command=on_start_button_click)
-btn_start.grid(row=2, column=2, padx=5, pady=5)
-
-btn_restart = tk.Button(tab2_frame1, text="다시 시작하기", command=on_restart_button_click)
-btn_restart.grid(row=3, column=2, padx=5, pady=5)
-
-# // 탭2 - 이미지 다운로드
-
 # 탭3 - 부가기능 영역
 # 부가기능 - 대소문자 변환
 tk.Label(tab3, text="대/소문자 변환", font=("맑은 고딕", 14)).pack(pady=10)
@@ -521,12 +494,6 @@ btn_kwd_del = tk.Button(tab3_frame2, text="삭제", command=lambda: del_item(etc
 btn_kwd_del.grid(row=3, column=7, padx=5, pady=5)
 
 
-# 데이터 로드 함수
-def load_json_data(file_name, file_data):
-    if not os.path.exists(file_name):
-        save_data(file_name, file_data)
-    with open(file_name, 'r', encoding='utf-8') as file:
-        return json.load(file)
 
 
 # 데이터 저장 함수
@@ -535,8 +502,7 @@ def save_data(name, data):
         json.dump(data, file, ensure_ascii=False, indent=4)
 
 
-# 데이터 초기화
-keyword_data = load_json_data(ECT_KEYWORD_FILE, kwd_initial_data)
+
 
 # 초기 리스트박스 데이터 추가
 for item in keyword_data.keys():
@@ -589,7 +555,7 @@ def update_data_from_listbox():
     items = listbox.get(0, tk.END)
     global keyword_data
     data = {item: keyword_data.get(item, "") for item in items}
-    save_data(data)
+    save_data(ETC_KEYWORD_FILE, data)
 
 
 # 텍스트 복사 함수
@@ -604,14 +570,14 @@ def mody_text(text):
     keywords = text.get("1.0", tk.END).strip()
     if item_name in keyword_data:
         keyword_data[item_name] = keywords
-        update_listbox()
-        save_data(keyword_data)
+        update_listbox(listbox,keyword_data)
+        save_data(ETC_KEYWORD_FILE, keyword_data)
 
 
-def update_listbox():
-    listbox.delete(0, tk.END)
-    for item in keyword_data.keys():
-        listbox.insert(tk.END, item)
+def update_listbox(list, data):
+    list.delete(0, tk.END)
+    for item in data.keys():
+        list.insert(tk.END, item)
 
 
 # 품목 등록 함수
@@ -621,8 +587,8 @@ def reg_item(item_entry, text_widget):
 
     if item and text:
         keyword_data[item] = text
-        save_data(keyword_data)
-        update_listbox()
+        save_data(ETC_KEYWORD_FILE, keyword_data)
+        update_listbox(listbox,keyword_data)
         item_entry.delete(0, tk.END)
         text_widget.delete("1.0", tk.END)
         messagebox.showinfo("등록 완료", f"'{item}' 항목이 등록되었습니다.")
@@ -637,8 +603,8 @@ def del_item(item_entry):
     if item in keyword_data:
         if messagebox.askyesno("삭제 확인", f"'{item}' 항목을 삭제하시겠습니까?"):
             del keyword_data[item]
-            save_data(keyword_data)
-            update_listbox()
+            save_data(ETC_KEYWORD_FILE, keyword_data)
+            update_listbox(listbox,keyword_data)
             item_entry.delete(0, tk.END)
             etc_input_kwd.delete("1.0", tk.END)
             messagebox.showinfo("삭제 완료", f"'{item}' 항목이 삭제되었습니다.")
@@ -656,23 +622,69 @@ tk.Label(tab4, text="설정", font=("맑은 고딕", 14)).pack(pady=10)
 tab4_frame1 = tk.Frame(tab4)
 tab4_frame1.pack(pady=5)
 
-tk.Label(tab4_frame1, text="경로 설정", font=("맑은 고딕", 14)).grid(row=0, column=0, columnspan=2)
+tk.Label(tab4_frame1, text="경로 설정", font=("맑은 고딕", 14)).grid(row=0, column=2, columnspan=2)
+listbox_2 = tk.Listbox(tab4_frame1, height=5, width=15)
+listbox_2.grid(row=1, column=0, rowspan=2, padx=5, pady=5)
 
-# 데이터 초기화
-setting_data = load_json_data(ETC_SETTING_FILE, setting_initial_data)
+# 품목
+tk.Label(tab4_frame1, text="세팅 항목: ").grid(row=1, column=3, padx=5, pady=5)
+set_input_item = tk.Entry(tab4_frame1, width=30)
+set_input_item.grid(row=1, column=4, columnspan=4, padx=5, pady=5)
 
-cnt = 1
+
+tk.Label(tab4_frame1, text="세팅 내용: ").grid(row=2, column=3, padx=5, pady=5)
+etc_input_set = tk.Text(tab4_frame1, height=10, width=30)
+etc_input_set.grid(row=2, column=4, rowspan=2, padx=5, pady=5)
+
+
+btn_setting_save = tk.Button(tab4_frame1, text="저장", command=lambda: mody_text_2(etc_input_set))
+btn_setting_save.grid(row=3, column=0, columnspan=2, padx=5, pady=5)
+
+
+
+
 # 세팅 url 불러오기
 for item in setting_data.keys():
     print(setting_data[item])
-    tk.Label(tab4_frame1, text=f'{item}').grid(row=cnt, column=0, padx=5, pady=5)
-    temp = tk.Entry(tab4_frame1, width=40)
-    temp.grid(row=cnt, column=1)
-    temp.insert(0,setting_data[item])
-    cnt +=1
+    listbox_2.insert(tk.END, item)
 
-btn_setting_save = tk.Button(tab4_frame1, text="저장", command=lambda: update_data_from_entry())
-btn_setting_save.grid(row=cnt, column=0, columnspan=2, padx=5, pady=5)
+# 리스트박스 선택 시 키워드 출력
+def on_select_2(event):
+    selected = listbox_2.get(listbox_2.curselection())
+    keywords = setting_data.get(selected)
+    set_input_item.delete(0, tk.END)
+    set_input_item.insert(0, selected)
+    etc_input_set.delete('1.0', tk.END)
+    etc_input_set.insert("2.0", keywords)
+
+listbox_2.bind('<<ListboxSelect>>', on_select_2)
+
+
+# 설정 등록 함수
+# def reg_item_2(item_entry, text_widget):
+#     item = item_entry.get().strip()
+#     text = text_widget.get("1.0", tk.END).strip()
+#
+#     if item and text:
+#         setting_data[item] = text
+#         save_data(ETC_SETTING_FILE, setting_data)
+#         update_listbox(listbox_2, setting_data)
+#         item_entry.delete(0, tk.END)
+#         text_widget.delete("1.0", tk.END)
+#         messagebox.showinfo("등록 완료", f"'{item}' 항목이 등록되었습니다.")
+#     else:
+#         messagebox.showwarning("입력 오류", "품목명과 키워드를 입력하세요.")
+
+# 텍스트 수정 함수
+def mody_text_2(text):
+    item_name = set_input_item.get()
+    settings = text.get("1.0", tk.END).strip()
+    if item_name in setting_data:
+        setting_data[item_name] = settings
+        update_listbox(listbox_2, setting_data)
+        save_data(ETC_SETTING_FILE, setting_data)
+        messagebox.showinfo("저장 완료", f"'{item_name}' 설정이 저장되었습니다.")
+
 
 def update_data_from_entry():
     # items = listbox.get(0, tk.END)
@@ -696,6 +708,7 @@ def scaleSelect(self):
     value = "값 : " + str(scale.get())
     scaleLabel.config(text=value)
     root.attributes('-alpha', scale.get() / 100)  # 투명도 설정
+
 
 
 scaleVar.set(100)  # 초기값 100 설정
